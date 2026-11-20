@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mobile Network
+Name[ru]=Мобильная сеть
+Comment=SIM status and SMS
+Comment[ru]=Статус SIM и SMS
+Exec=/usr/local/bin/net-gui
+Icon=phone-symbolic
+Terminal=false
+Categories=Network;
+X-Purism-FormFactor=Workstation;Mobile;
