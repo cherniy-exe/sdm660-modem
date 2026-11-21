@@ -1,0 +1,43 @@
+From 587182b1d75e78a0f75c6986987193caecda1611 Mon Sep 17 00:00:00 2001
+From: Agent <agent@local>
+Date: Sat, 21 Nov 2026 09:07:43 +0300
+Subject: [PATCH] ipa: deliver v2.6L downlink packets with non-cookie tags
+
+---
+ drivers/net/ipa/ipa_endpoint.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/net/ipa/ipa_endpoint.c b/drivers/net/ipa/ipa_endpoint.c
+index 88ab3e342..8b7c07077 100644
+--- a/drivers/net/ipa/ipa_endpoint.c
++++ b/drivers/net/ipa/ipa_endpoint.c
+@@ -1590,14 +1590,21 @@ ipa_endpoint_status_tag_valid(struct ipa_endpoint *endpoint, const void *data)
+ 		 * treating it as an error.
+ 		 */
+ 		if (tag_high16 == (IPA_COOKIE >> 16) &&
+-		    (tag_low32 >> 16) == (IPA_COOKIE & 0xffff))
++		    (tag_low32 >> 16) == (IPA_COOKIE & 0xffff)) {
+ 			dev_dbg(ipa->dev,
+ 				"IPA tag process status from endpoint %u\n",
+ 				endpoint_id);
+-		else
+-			dev_err_ratelimited(ipa->dev,
+-					    "unexpected tagged packet from endpoint %u\n",
+-					    endpoint_id);
++			return true;	/* pipeline sync marker, drop it */
++		}
++
++		/* IPA v2.6L firmware tags ordinary WAN downlink data with a
++		 * non-cookie tag.  Dropping those packets leaves the modem
++		 * netdev with RX == 0 even though the downlink arrives.
++		 */
++		dev_dbg_ratelimited(ipa->dev,
++				    "tagged data from endpoint %u, delivering\n",
++				    endpoint_id);
++		return false;
+ 	} else {
+ 		dev_err(ipa->dev, "unexpected tagged packet from endpoint %u\n",
+ 			endpoint_id);
+-- 
+2.43.0
+
