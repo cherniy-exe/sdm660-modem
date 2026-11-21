@@ -2,7 +2,7 @@
 
 ## Что удалось проверить
 
-Вариант **IPA wip2** (предыдущее рабочее ядро): IPA инициализируется, BAM DMA
+Вариант **IPA wip2** (community-порт v2.6L): IPA инициализируется, BAM DMA
 активен, `rmnet_ipa0` создаётся. В `dmesg`:
 
 ```
@@ -12,9 +12,12 @@ ipa 147c0000.ipa: IPA driver setup completed successfully
 ipa 147c0000.ipa: received modem starting/running event
 ```
 
-udev: `ID_MM_CANDIDATE=1`, `ID_MM_QCOM_SOC=1`; модем `online`, `registered`,
-LTE. ModemManager может увидеть модем после перезапуска, но сбрасывает его
-`enabled → disabling → disabled`. Передача IP-пакетов не подтверждена.
+Позднее, с dyndbg, включённым **до** загрузки модуля, подтверждён полный
+хендшейк: `received IPA config request`, `DPM port mapping installed`,
+`installed WAN DL filters` — то есть QMI/DPM/mux работают. Модем после
+холодного ребута и патчей ModemManager уходит в `connected`/LTE,
+`qmapmux0.0` получает IP из PDP-контекста. Но `RX` остаётся 0; свежая
+диагностика и инструменты — `docs/DATA-PATH.md`.
 
 ## Провал варианта ipa2-lite
 
@@ -39,7 +42,8 @@ remoteproc). Патч оставлен в `patches/` с предупрежден
 
 ## Известные проблемы
 
-- Передача IP-пакетов от модема в `rmnet_ipa0` (QMI WDS / IP-конфигурация).
+- Нисходящие пакеты приходят на endpoint 6 (`MODEM_LAN_TX`), но отбрасываются
+  как tagged (`unexpected tagged packet from endpoint 6`).
 - `ath10k_snoc` на 7.2 без патчей роняет модем при отключении Wi-Fi; нужны
   патчи из [mest2011/redmi-note7-nura](https://github.com/mest2011/redmi-note7-nura).
 - Слабый сигнал LTE на тестовом экземпляре проверять вне помещения.
@@ -47,9 +51,9 @@ remoteproc). Патч оставлен в `patches/` с предупрежден
 ## Проверки и откат
 
 ```bash
-dmesg | grep -iE 'ipa|bam|lockup|watchdog' | tail -20
-ip -o link show | grep rmnet
-udevadm info /sys/class/net/rmnet_ipa0 | grep ID_MM
+dmesg | grep -iE 'ipa|bam|lockup|watchdog|tagged' | tail -20
+ip -o link show | grep -E 'rmnet|qmap'
+ip -s link show qmapmux0.0 | grep -A2 'RX:'
 qmicli -d qrtr://0 --nas-get-serving-system | grep 'Registration state'
 mmcli -L
 ```
